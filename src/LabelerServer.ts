@@ -445,20 +445,17 @@ export class LabelerServer {
 	 */
 	subscribeLabelsHandler: SubscriptionHandler<{ cursor?: string }> = async (ws, req) => {
 		await this.dbInitLock;
-		// @ts-ignore
 		const cursor = parseInt(req.query.cursor ?? "NaN", 10);
+		console.log(cursor);
 
-		const latest = await this.db.execute({
-				sql: "SELECT MAX(id) AS id FROM labels",
-				args: [],
-			});
-		const total = Number(latest.rows[0]?.id)
-		const limit = 1000
-		const totalPages = Math.ceil(total/limit)
+		const latest = await this.db.execute({ sql: "SELECT MAX(id) AS id FROM labels", args: [] });
+		const total = Number(latest.rows[0]?.id);
+		const limit = 1000;
+		const totalPages = Math.ceil(total / limit);
 		try {
-			for (let i=0; i<=totalPages; i++) {
-        	const offset=(totalPages - i) * limit
-			const result = await this.db.execute({
+			for (let i = 0; i <= totalPages; i++) {
+				const offset = (totalPages - i) * limit;
+				const result = await this.db.execute({
 					sql: `
 						SELECT * FROM labels
 						ORDER BY id ASC
@@ -485,17 +482,16 @@ export class LabelerServer {
 					}, "#labels");
 					ws.send(bytes);
 				}
-				}
-			} catch (e) {
-				console.error(e);
-				const errorBytes = frameToBytes("error", {
-					error: "InternalServerError",
-					message: "An unknown error occurred",
-				});
-				ws.send(errorBytes);
-				ws.terminate();
 			}
-		
+		} catch (e) {
+			console.error(e);
+			const errorBytes = frameToBytes("error", {
+				error: "InternalServerError",
+				message: "An unknown error occurred",
+			});
+			ws.send(errorBytes);
+			ws.terminate();
+		}
 
 		this.addSubscription("com.atproto.label.subscribeLabels", ws);
 
