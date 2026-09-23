@@ -446,30 +446,23 @@ export class LabelerServer {
 	subscribeLabelsHandler: SubscriptionHandler<{ cursor?: string }> = async (ws, req) => {
 		await this.dbInitLock;
 
-		const cursor = parseInt(req.query.cursor ?? "NaN", 10);
-
-		if (!Number.isNaN(cursor)) {
-			const latest = await this.db.execute({
+		const latest = await this.db.execute({
 				sql: "SELECT MAX(id) AS id FROM labels",
 				args: [],
 			});
-			if (cursor > (Number(latest.rows[0]?.id) ?? 0)) {
-				const errorBytes = frameToBytes("error", {
-					error: "FutureCursor",
-					message: "Cursor is in the future",
-				});
-				ws.send(errorBytes);
-				ws.terminate();
-			}
-
-			try {
-				const result = await this.db.execute({
+		const total = Number(latest.rows[0]?.id)
+		const limit = 1000
+		const totalPages = Math.ceil(total/limit)
+		try {
+			for (let i=0; i<=totalPages; i++) {
+        	const offset=(totalPages - i) * limit
+			const result = await this.db.execute({
 					sql: `
 						SELECT * FROM labels
-						WHERE id > ?
 						ORDER BY id ASC
+            LIMIT ? OFFSET ?
 					`,
-					args: [cursor],
+					args: [limit, offset],
 				});
 
 				for (const row of result.rows) {
@@ -490,6 +483,7 @@ export class LabelerServer {
 					}, "#labels");
 					ws.send(bytes);
 				}
+				}
 			} catch (e) {
 				console.error(e);
 				const errorBytes = frameToBytes("error", {
@@ -499,7 +493,7 @@ export class LabelerServer {
 				ws.send(errorBytes);
 				ws.terminate();
 			}
-		}
+		
 
 		this.addSubscription("com.atproto.label.subscribeLabels", ws);
 
