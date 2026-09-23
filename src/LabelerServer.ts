@@ -445,6 +445,8 @@ export class LabelerServer {
 	 */
 	subscribeLabelsHandler: SubscriptionHandler<{ cursor?: string }> = async (ws, req) => {
 		await this.dbInitLock;
+		// @ts-ignore
+		const cursor = parseInt(req.query.cursor ?? "NaN", 10);
 
 		const latest = await this.db.execute({
 				sql: "SELECT MAX(id) AS id FROM labels",
